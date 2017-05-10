@@ -4,7 +4,7 @@ import tensorflow as tf
 
 
 def atari_preprocessing(raw_image, width, height):
-    gray_image = np.dot(raw_image[..., :3], [0.299, 0.587, 0.114])
+    gray_image = np.dot(raw_image[..., :3], [0.299, 0.587, 0.114]) / 255
     resized_image = imresize(gray_image, [width, height])
     return resized_image
 

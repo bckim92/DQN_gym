@@ -22,8 +22,11 @@ class Agent(object):
         self.history = History(config)
         self.config = config
         self.action_space = action_space
+        self.train_counter = 0
 
-        self.w_initializer = tf.truncated_normal_initializer(0, 0.02)
+        #self.w_initializer = tf.truncated_normal_initializer(0, 0.02)
+        #self.w_initializer = tf.uniform_unit_scaling_initializer(1.0)
+        self.w_initializer = tf.contrib.layers.xavier_initializer()
         self.b_initializer = tf.constant_initializer(0.0)
 
         # Build placeholders
@@ -75,13 +78,18 @@ class Agent(object):
 
         # Update source network
         if current_step > self.config.learn_start:
-            current_observation, current_action, current_reward, next_observation, current_done = self.replay_memory.sample()
-            _, summary_str = sess.run([self.train_op, self.summary_op],
-                                      {self.current_observation: current_observation,
-                                       self.next_observation: next_observation,
-                                       self.current_action: current_action,
-                                       self.current_reward: current_reward,
-                                       self.done: current_done})
+            if self.train_counter == self.config.update_frequency:
+                current_observation, current_action, current_reward, next_observation, current_done = self.replay_memory.sample()
+                _, summary_str = sess.run([self.train_op, self.summary_op],
+                                          {self.current_observation: current_observation,
+                                           self.next_observation: next_observation,
+                                           self.current_action: current_action,
+                                           self.current_reward: current_reward,
+                                           self.done: current_done})
+                self.train_counter = 0
+            else:
+                self.train_counter += 1
+                summary_str = None
         else:
             summary_str = None
 
@@ -97,11 +105,11 @@ class Agent(object):
 
     def _build(self, current_observation, next_observation, current_action, current_reward, done):
         # Global variables
-        self.global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
+        self.global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), dtype=tf.int32, trainable=False)
 
         # Build network
-        source_q = self._build_network(current_observation, 'source')
-        target_q = self._build_network(next_observation, 'target')
+        source_q = self._build_network(current_observation, 'source', True)
+        target_q = self._build_network(next_observation, 'target', False)
 
         # Compute loss
         action_one_hot = tf.one_hot(current_action, self.action_space, 1.0, 0.0, name="action_one_hot")
@@ -121,12 +129,12 @@ class Agent(object):
                 staircase=True
             )
         )
-        train_op = tf.train.RMSPropOptimizer(learning_rate_op, momentum=0.95, epsilon=0.1).minimize(loss, global_step=self.global_step)
+        train_op = tf.train.RMSPropOptimizer(learning_rate_op, momentum=0.95, epsilon=0.01).minimize(loss, global_step=self.global_step)
 
         # Update target network
         target_update_op = []
         source_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='source')
-        target_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='target')
+        target_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target')
         for source_variable, target_variable in zip(source_variables, target_variables):
             target_update_op.append(target_variable.assign(source_variable.value()))
         target_update_op = tf.group(*target_update_op)
@@ -141,12 +149,13 @@ class Agent(object):
 
         return train_op, predicted_action, target_update_op
 
-    def _build_network(self, observation, name='source'):
+    def _build_network(self, observation, name='source', trainable=True):
         with tf.variable_scope(name):
             with arg_scope([layers.conv2d, layers.fully_connected],
                            activation_fn=tf.nn.relu,
                            weights_initializer=self.w_initializer,
-                           biases_initializer=self.b_initializer):
+                           biases_initializer=self.b_initializer,
+                           trainable=trainable):
                 with arg_scope([layers.conv2d], padding='VALID'):
                     conv1 = layers.conv2d(observation, num_outputs=32, kernel_size=8, stride=4, scope='conv1')
                     conv2 = layers.conv2d(conv1, num_outputs=64, kernel_size=4, stride=2, scope='conv2')

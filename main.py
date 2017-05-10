@@ -16,7 +16,7 @@ flags.DEFINE_integer("memory_size", 1000000, "")
 flags.DEFINE_float("gamma", 0.99, "")
 
 # Training
-flags.DEFINE_integer("num_steps", 1000000, "Number of steps to run/train")
+flags.DEFINE_integer("num_steps", 10000000, "Number of steps to run/train")
 flags.DEFINE_integer("target_network_update_step", 10000, "Period to update target q network")
 flags.DEFINE_integer("learn_start", 50000, "Steps to start learning")
 
@@ -34,16 +34,19 @@ flags.DEFINE_float("epsilon_start", 1.0, "")
 flags.DEFINE_float("epsilon_end", 0.1, "")
 flags.DEFINE_integer("epsilon_end_step", 50000, "")
 
+flags.DEFINE_integer("update_frequency", 4, "")
+
 # Environment
-flags.DEFINE_string("env_name", "SpaceInvaders-v0", "Gym environment name to use")
+flags.DEFINE_string("env_name", "Breakout-v0", "Gym environment name to use")
 flags.DEFINE_integer("screen_width", 84, "")
 flags.DEFINE_integer("screen_height", 84, "")
+flags.DEFINE_integer("action_repeat", 4, "")
 
 # Etc
 flags.DEFINE_boolean("is_train", True, "Whether to do training or testing")
 flags.DEFINE_integer("random_seed", 12345, "Random seed")
 flags.DEFINE_boolean("display", False, "Whether to display the game screen or not")
-flags.DEFINE_string("train_dir", "checkpoints", "")
+flags.DEFINE_string("train_dir", "checkpoints/breakout", "")
 flags.DEFINE_string("gpu_id", "0", "")
 
 FLAGS = flags.FLAGS
@@ -71,7 +74,7 @@ def main(argv=None):
         tf.logging.info("Creating training directory: %s", train_dir)
         tf.gfile.MakeDirs(train_dir)
 
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.95)
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.3)
     session_config = tf.ConfigProto(
         allow_soft_placement=True,
         log_device_placement=False,
@@ -97,19 +100,23 @@ def main(argv=None):
         log_vars = _init_log_vars()
 
         done = True
-        action = 0
         for step in tqdm(range(FLAGS.num_steps), ncols=70):
             if done:
-                observation = atari_preprocessing(env.reset(), FLAGS.screen_width, FLAGS.screen_height)
-                reward = 0.0
-                done = False
+                env.reset()
                 log_vars["num_games"] += 1
                 log_vars["ep_rewards"].append(log_vars["ep_reward"])
                 log_vars["ep_reward"] = 0.
-            else:
-                raw_observation, reward, done, info = env.step(action)
-                observation = atari_preprocessing(raw_observation, FLAGS.screen_width, FLAGS.screen_height)
-                log_vars["ep_reward"] += reward
+                action = 0
+
+            reward = 0.
+            for _ in xrange(FLAGS.action_repeat):
+                raw_observation, one_reward, done, info = env.step(action)
+                reward += one_reward
+                if done:
+                    reward -= 1.
+                    break
+            observation = atari_preprocessing(raw_observation, FLAGS.screen_width, FLAGS.screen_height)
+            log_vars["ep_reward"] += reward
 
             if FLAGS.display:
                 env.render()
