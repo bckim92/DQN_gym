@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os
 
 import gym
@@ -74,7 +78,7 @@ def main(argv=None):
         tf.logging.info("Creating training directory: %s", train_dir)
         tf.gfile.MakeDirs(train_dir)
 
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.3)
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
     session_config = tf.ConfigProto(
         allow_soft_placement=True,
         log_device_placement=False,
@@ -109,7 +113,7 @@ def main(argv=None):
                 action = 0
 
             reward = 0.
-            for _ in xrange(FLAGS.action_repeat):
+            for _ in range(FLAGS.action_repeat):
                 raw_observation, one_reward, done, info = env.step(action)
                 reward += one_reward
                 if done:
@@ -141,8 +145,7 @@ def main(argv=None):
                     min_r = 0.0
                     avg_r = 0.0
 
-                format_str = "[Step %d] avg_r: %.4f, max_r: %.4f, min_r: %.4f, # games: %d, epsilon: %.4f" % \
-                    (step, avg_r, max_r, min_r, num_games, epsilon)
+                format_str = "[Step {}] avg_r: {:4}, max_r: {:4}, min_r: {:4}, # games: {}, epsilon: {:4}".format (step, avg_r, max_r, min_r, num_games, epsilon)
                 tf.logging.info(format_str)
 
                 summary = tf.Summary()
@@ -162,7 +165,7 @@ def main(argv=None):
 
             # Save the model checkpoint periodically
             if (step + 1) % SAVE_STEP == 0:
-                tf.logging.info("Save checkpoint at %d step" % step)
+                tf.logging.info("Save checkpoint at {} step".format(step))
                 checkpoint_path = os.path.join(train_dir, 'model.ckpt')
                 saver.save(sess, checkpoint_path, global_step=agent.global_step.eval())
 

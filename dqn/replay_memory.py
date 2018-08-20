@@ -2,6 +2,9 @@
     https://github.com/tambetm/simple_dqn/blob/master/src/replay_memory.py
     https://github.com/devsisters/DQN-tensorflow
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import random
 import numpy as np

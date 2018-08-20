@@ -1,4 +1,9 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import random
+from functools import reduce
 
 import tensorflow as tf
 
@@ -142,8 +147,8 @@ class Agent(object):
         # Logging
         predicted_action = tf.argmax(source_q, dimension=1)
         avg_q = tf.reduce_mean(source_q, 0)
-        for idx in xrange(self.action_space):
-            tf.summary.histogram('q/%s' % idx, avg_q[idx])
+        for idx in range(self.action_space):
+            tf.summary.histogram('q/{}'.format(idx), avg_q[idx])
         tf.summary.scalar('learning_rate', learning_rate_op)
         tf.summary.scalar('loss', loss)
 
